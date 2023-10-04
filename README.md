@@ -1,196 +1,175 @@
-## IMPORTANT
+# Express Authentication
 
-Read this ENTIRE document before beginning work.
+PLEASE NOTE THAT PRIOR TO THIS ASSIGNMENT, YOU NEED TO HAVE FINISHED THE SECTION TITLED "Authentication with Auth0" IN THE PRE-HOMEWORK
 
-## Collaboration
+### ‼️ ⚠️  ***ATTENTION*** ⚠️ ‼️
 
-ONE person from the group will fork this repo from ACA. That person will give everyone else permissions as a "collaborator". From that point on, you will all clone THE ONE repo and your changes will be in the form of __pull requests__. For each change/ticket you will create a new branch and work from there. Remember to always pull the latest from the master branch before you begin on a new task.
+There is a typo in this repo that will cause it to crash! Please go to to `/controllers/auth.js` line 1 and remove the `1` character from the beginning of the line, as seen [here](https://github.com/AustinCodingAcademy/311_wk6_day2_authentication/blob/master/controllers/auth.js#L1).
 
-_Adding a collaborator_
-<br />
-https://stackoverflow.com/questions/7920320/adding-a-collaborator-to-my-free-github-account
+There are some known issues with dependencies for this project on Windows. Before doing any of the following setup, please do the following: 
 
-_Creating a new branch_
-<br />
-`git checkout -b <BRANCH_NAME>`
+1. Run `npm audit fix --force` (this will fix dependency issues on Windows)
+2. Run `npm install`
+3. Run `npm start`
 
-_Pulling from master_
-* Make sure you are on the master branch (`git checkout master`)
-* Pull the latest changes (`git pull origin master` or `git pull` for short)
+If you're still seeing errors related to `jwt` not being a function, go to `middleware/index.js` and change the import on line 2 for `jwt` to this: 
 
-While ONE person is working on this, ANOTHER person can begin work on [database setup](#database-setup)
+```js
+const { expressjwt: jwt } = require("express-jwt");
+```
 
-## Instructions
+Now you may proceed with the below setup steps 👍
 
-You will work as a group to create APIs from the very beginning. Notice that there is currently no code. Not a single file. Follow the steps below to make this happen. Please keep in mind that not all tasks are parallizable.. that means that some things will need to happen before others and there are points where the rest of the group may need to wait for one person to complete a task in order to move on. That's fine. Give that person support and collaborate together to unblock each other. 
+## Setup
 
-_Note: Many tasks are intentionally vague. It's up to you to learn/google some of these_
+1. Initialize and run the app: `npm install` to watch the dependencies be downloaded
 
-## Database setup
+1. Create a `.env` file with the following structure. Alter the fields below to match your own values, using the Auth0 account you created. There are screenshots below to help you find these values in your Auth0 dashboard.
 
-#### Download MySQL
+```yaml
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=your_local_mysql_password_here
+DB_DEFAULT_SCHEMA=admin
+AUTH0_IDENTITY=express-auth-app // or whatever you called the project in Auth0
+AUTH0_DOMAIN=dev-randomstring.us.auth0.com
+AUTH0_CLIENT_ID=asdfdsfsafda
+AUTH0_CLIENT_SECRET=asdfsadfdsfasdf
+```
+> *NOTE: Don't include quotes in the `.env` file.
 
-1. https://dev.mysql.com/downloads/mysql/
 
-2. Choose download file
+You can find the values for the `AUTH0` environment variables by navigating to the places in your Auth0 dashboard, as shown in the images below.
 
-3. Next page click "No thanks, just start my download" at the bottom 
+<img width="1270" alt="Screen Shot 2023-02-08 at 1 51 31 PM" src="https://user-images.githubusercontent.com/20386502/217671550-84a20286-cdf9-4b85-9d2d-aefa18b6190d.png">
 
-4. Once downloaded, install the application
+Be sure to add the domain exactly as it appears in your dashboard, without `http(s)://`:
 
-5. Type `mysql` in a new terminal
+![Screen Shot 2023-02-08 at 3 34 12 PM](https://user-images.githubusercontent.com/20386502/217676224-67f22d61-68cf-47a4-bafe-759557e0ab52.png)
 
-6. If you get a "command not found error" you need to add the command to your path. Run the following command to do that: `export PATH=$PATH:/usr/local/mysql/bin`
 
-#### Connect to Google Cloud
+The app is using `nodemon` so you can use `npm start` and any changes made (and saved) will cause the server to restart automatically.
 
-We will use ONE person's Google Cloud database for this assignment. The steps for connecting to the database will follow.
+If you get errors after adding your database credentials to the `.env` file in the instructions below, follow these commands to upgrade to `mysql2`:
+  - `npm uninstall mysql`
+  - `npm install mysql2`
+  - Modify all places in the app that require `mysql`: 
+    - Change `const mysql = require('mysql')` to `const mysql = require('mysql2')`
 
-1. Use the following command to connect to your Google Cloud database
-  * `mysql -u root -h <HOST IP FROM WORKBENCH> -p`
-  * You will be prompted for a password
-  * This is very similar to connecting through MySQL Workbench
-  * [Additional information](https://stackoverflow.com/questions/15872543/access-mysql-remote-database-from-command-line)
+Finally, in MySQL Workbench, run the `initialize.sql` script that is included in this project. You will run this on the "admin" database. You can simply copy the sql from the file into your MySQL Workbench console. Follow the steps under the `imgs` folder if you are having trouble with this.
 
-2. Type `quit` when you want to exit the process
+## Overview
 
-#### Import data
+Note: This is a tough project, but hang in there and try to understand as much as possible. Auth0 is a popular framework for authentication. A lot of the setup is done for us.
 
-We are going to use sample data given to use by MySQL. An overview of the process exists here: https://dev.mysql.com/doc/employee/en/
+The `routes/controllers`, SQL statements and basic setup has been done for us. Our job is now to complete the functions in the middleware folder and then use them in our routes.
 
-1. Git clone the following repo in a new directory (NOT THIS ONE)
-  * https://github.com/datacharmer/test_db.git
+## GET users
 
-2. cd into that directory
+In Postman or a web browser, navigate to `http://localhost:4001/users/` (a GET request) and you should be able to see a list of all the users in your database. This is information that we will leave public.
 
-3. Run the connect command followed by `< employees.sql` to load that database
-  * `mysql -u root -h <HOST IP FROM WORKBENCH> -p < employees.sql`
+## POST / PUT / DELETE
 
-4. After the operation is complete (may take a couple mins) you should have automatically been exited from the `mysql` command
+These routes are for manipulating the data and these are things that we ideally want someone to be logged in for before they are able to work with the data. To start, we will create a middleware function (that Auth0 provides us).
 
-5. Pull up MySQL Workbench so that we can work with a familiar interface
+### Middleware
 
-6. You should see an "employees" database on the left hand side
+In the `middleware/index.js` file, locate the function called `checkJwt`. We need to apply this middleware to the routes you want to protect. Before you do that though... go to Postman and send a POST request to `http://localhost:4001/users/` with no body. This should add a pre-selected user to your DB. You should have gotten a response that looks like this:
 
-7. Double-click that database
+```json
+{
+    "newId": 501
+}
+```
 
-8. Open a new query and run `select * from employees;`
+In order to prevent this, we need to go to that route, the third one down in the `routers/users.js` file, and add `checkJwt` in between the path and the request/response function. The final result should look like this:
 
-9. You should have retrieved 1000 employee rows 
+```js
+// routes/users line 10
+router.post('/', checkJwt, usersController.createUser)
+```
 
-10. You should see 6 tables under this database. There are over 2 million records among those two tables
+Now go ahead and attempt to make that POST request again in Postman. The one to `http://localhost:4001/users/`. Try it a couple of times. You should now get a response with a 401 status code and a body that has `UnauthorizedError: No authorization token was found` in it. That's good news, we are now blocking requests to this endpoint until people are authenticated. Add that same middleware to the rest of the routes (that are not GET requests) in the `routers/users.js` file.
 
-11. Start tinkering with the data via SELECT statements to get familiar with it. We will use this data with our API
+## Authenticating
 
-## Creating APIs
+So how do users authenticate? We've seen how we can block them but now we actually need certain users to have access. So we need to send the bearer token (jwt). First we'll do a test run.
 
-Let's get started...
+### Testing the JWT
 
-### STEPS
+From the Auth0 dashboard in your browser, navigate to APIs (on the left side) -> My Express App (the API you created in pre-homework) -> Test. Midway down the page in the code block labeled "Response", copy the "access token" to your clipboard. It should start with `eyJ0eXAiOiJKV1QiLCJh...` or some close combination of characters.
 
-#### 1. Initialize your project
+Now in Postman, we're going to execute that same POST request but this time we are going to add a header. A header as we know is a piece of information that gets sent along with the request. In Postman go to the "headers" column and give it the name "Authorization" and the value of your token preceded by the word "Bearer". So it will look something like:
 
-* In this folder run `npm init`. Accept all the defaults (press enter a bunch of times)
+`Authorization: Bearer eyJ0eXAiOiJKV1QiLCJh...`
 
-* You should now have a `package.json` file
+Execute the request and notice that you are allowed to add users again and see a response that looks like this:
 
-* Npm install the following packages: `express body-parser nodemon mysql`
+```json
+{
+    "newId": 502
+}
+```
 
-* You should now have a `package-lock.json` file and a `node_modules` folder
+### Obtaining the JWT
 
-* Create an `index.js` file and type `console.log('testing')` on the first line
+Ok so we now have protected routes and some users can access them if they have the appropriate token but where do they get that token from? We need to create a workflow that sends back a token when a user logs in. We need to do that by calling an Auth0 endpoint during the login endpoint.
 
-* Open the package.json file and add a new `start` script. The value should be `nodemon ./index.js`
+Find the "login" function in [controllers/auth.js](./controllers/auth.js). You'll see that the call to the Auth0 endpoint is mostly complete but we still need to do a few things.
 
-* Type `npm start` in the terminal. Did you see the log?
+1. Set the default directory on your Auth0 account to "Username-Password-Authentication". You can do this by clicking "Settings" in the bottom of the left sidebar. On the "General" tab, scroll down to the "API Authorization Settings" box and add `Username-Password-Authentication` to the "Default Directory" input, as shown in the screenshot below: 
 
-* Change the word "testing" to "re-testing". Did it re-load with the new log?
+![Screen Shot 2023-02-08 at 5 12 22 PM](https://user-images.githubusercontent.com/20386502/217694674-526453d3-c28e-4c1a-be08-27d1073e2e14.png)
 
-* Setup is complete
+Next, go to `Applications` --> [click the project you just created] --> Scroll all the way down to "Advanced Settings." Make sure that the option "Password" is checked: 
 
-* Stop and commit/push work. Everyone else pull the updated code
+<img width="1282" alt="Screen Shot 2023-02-10 at 3 16 44 PM" src="https://user-images.githubusercontent.com/20386502/218220646-04457bf5-438f-4eb0-8550-b05b52498cf4.png">
 
 
-#### 2. Basic Express
+2. Now we need to create a couple of users for our application to use. We will do this manually for now. Go to the main page of your Auth0 dashboard in your browser, select "Users & Roles" -> "User", then click "Create User". Leave the default connection type and enter an email and password for your user. For example:
 
-* Remove the "console.log" from the index.js file
+```yaml
+email: test@example.com
+password: Password!
+```
 
-* On the first line, import express: `const express = require('express')`
+Remember this information because we are about to use it again. This time go to Postman and submit a request to the `/auth/login` route that's already been created for us in this application. The full request will be a POST to `http://localhost:4001/auth/login` with the body:
 
-* Initialize the app on the second line: `const app = express()`
+```json
+{
+    "username": "test@example.com",
+    "password": "Password!"
+}
+```
 
-* Have the app listen on port 4001
+If everything worked correctly you should have received an "access_token" in return. That's the token that we can use to send to your endpoints after a user logs in. Keep in mind that the "users" are now stored in Auth0 and are different from the users we have in our database. Those database users are just dummy data at this point. We won't need to actually store information about our users because Auth0 will do it for us.
 
-* Re-run the `npm start` command if necessary.. is the app running?
+If you are having issues you may refer to the last screenshot above and make sure that you have `Username-Password-Authentication` in the "Default Directory" input.
 
-* Navigate to `http://localhost:4001` in the browser to check if the app is running
+## BONUS - logger
 
-* Before the "app.listen", add a default GET route and `res.send` the text: "Welcome to our API"
+Create a function called `logger` in the `middleware/index.js` file. Its purpose will be to log the route and date/time that each request happened. The outline of the function will look like this:
 
-* Congratulations, we have a server running
+```js
+const logger = (req, res, next) => {
 
+}
+```
 
-#### 3. Express routes - BEGINNING
+Inside of this function we will put a `console.log` statement with three arguments separated by a comma:
 
-* Create a new folder called `routes`
+1. The string, `'Logging route:'`
+2. The request path ex. `/users`
+3. The date/time in ISO format. Ex. `new Date().toISOString()`
 
-* In the routes folder, create a new file called `employees.js`
+Remember to call the `next()` function in order to continue. Otherwise, the API call will get hung up in this middleware function.
 
-* Create a router and make GET routes for `/, /:id, firstname/:first_name`
+Import this logger function into the main `index.js` file: `const { logger } = require('./middleware')`
 
-* For right now, use `res.send` to send back the text "getting employees..." for each route. We will update this later
+Between the `bodyParser` and the users router add the following: `app.use(logger)`
 
-* Export the router and import it into the `index.js` file. Use it with the prefix of "employees" so that each route above starts with "employees"
-
-#### 4. Express controllers - BEGINNING
-
-* Create a new folder called `controllers`
-
-* In the controllers folder, create a new file called `employees.js`
-
-* Create the following functions `getEmployees, getEmployeesById, getEmployeesByFirstName`
-
-* Move the logic (everything after the route path) from the employees router into these functions
-
-* Export these functions: `module.exports = { getEmployees, getEmployeesById, getEmployeesByFirstName }`
-
-* Import these functions back into the employees router and use them `router.get('/:id', controller.getEmployeesById)`
-
-* Everything should have stayed the same. If you navigate to `http://localhost:4001/employees/5` you should see the text "getting employees..."
-
-#### 5. Hooking up MySQL
-
-* Create a new folder called `mysql`
-
-* In the mysql folder, create a new file called `connection.js`
-
-* Import `mysql` at the top of the file
-
-* Create a function (_singleton_) that creates a connection pool (if it doesn't already exist) and returns it. Export this function
-  * Remember to use the appropriate credentials from the ONE database we are currently sharing and make sure the "database" field in the connection pool is set to "employees"
-
-* Import the previous function into whichever file needs it. This will usually be the controller. You will import this connection as `pool` and use `pool.query` to query the database. Remember that the first argument to this function is a SELECT statement and the second argument is a callback with `(err, results)` parameters
-
-* If at any point (in any file) we find an `err` when using `pool.query`, return a 500 status code and the text, "something went wrong"
-
-#### 6. Employees controller - CONTINUED
-
-* Import the `pool` function from `mysql/connection` at the top of the file (controllers/employees.js). Additionally import the general `mysql` package 
-
-* Update the `getEmployees` function so that it calls the database, __selecting all fields from the employees table but limiting the results to 50__. Use `res.json` to return the results to the user
-
-* Update the `getEmployeesById` function so that it calls the database, __selecting all fields from the employees table where the emp_no matches the id query parameter__. This should return one result. Use `res.json` to return the result to the user
-
-* Update the `getEmployeesByFirstName` function so that it calls the database, __selecting all fields from the employees table where the first_name matches the first_name query parameter__. This could return multiple results. Use `res.json` to return the results to the user
-
-#### Salaries and Departments
-
-* Repeat steps 3-6 to create three more routes tying employee information to their current salaries or departments. New routes, controllers and queries will need to be created. You are free to collaboratively name these routes/controller functions anything you wish.
-
-#### QA
-
-All routes should be returning data from the database visibile through either the browser or Postman. 
+This is an example of application specific middleware. Every route will now pass through our logger function and log the path and the date/time that the request was made. This would be useful for determining our most popular routes.
 
 ## Summary
 
-When complete, there should be a fully functioning API integrated with an external MySQL database. This is most of the work required to create an API. Congratulations!
+If all went according to plan we now have an API that is locked down with authentication and we have also added middleware on all of our routes that logs the current request and the associated date/time.
